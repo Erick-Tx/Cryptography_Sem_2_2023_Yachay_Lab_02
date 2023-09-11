@@ -1,48 +1,54 @@
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes 
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
 
-# Generate a 256-bit (32-byte) AES key
-def generate_aes_key():
-    return get_random_bytes(32)  # 256 bits
+import hashlib
+import sys
+import binascii
 
-# Pad plaintext to a 128-bit block size using CMS padding
-def pad_data(plaintext):
-    cipher = AES.new(key, AES.MODE_ECB)
-    padded_data = pad(plaintext.encode(), AES.block_size)
-    return padded_data
+val='hello'
+password='hello123'
 
-# Unpad plaintext after decryption
-def unpad_data(ciphertext):
-    cipher = AES.new(key, AES.MODE_ECB)
-    plaintext = unpad(ciphertext, AES.block_size)
-    return plaintext.decode()
+plaintext=val
 
-# Encrypt plaintext using AES ECB mode
-def encrypt(plaintext, key):
-    cipher = AES.new(key, AES.MODE_ECB)
-    ciphertext = cipher.encrypt(plaintext)
-    return ciphertext
+def encrypt(plaintext,key, mode):
+    method=algorithms.AES(key)
+    cipher = Cipher(method,mode, default_backend())
+    encryptor = cipher.encryptor()
+    ct = encryptor.update(plaintext) + encryptor.finalize()
+    return(ct)
 
-# Decrypt ciphertext using AES ECB mode
-def decrypt(ciphertext, key):
-    cipher = AES.new(key, AES.MODE_ECB)
-    plaintext = cipher.decrypt(ciphertext)
-    return plaintext
+def decrypt(ciphertext,key, mode):
+    method=algorithms.AES(key)
+    cipher = Cipher(method, mode, default_backend())
+    decryptor = cipher.decryptor()
+    pl = decryptor.update(ciphertext) + decryptor.finalize()
+    return(pl)
 
-# Main program
-if __name__ == "__main__":
-    key = generate_aes_key()
+def pad(data,size=128):
+    padder = padding.PKCS7(size).padder()
+    padded_data = padder.update(data)
+    padded_data += padder.finalize()
+    return(padded_data)
 
-    plaintext = "Your plaintext message"
-    print("Original plaintext:", plaintext)
+def unpad(data,size=128):
+    padder = padding.PKCS7(size).unpadder()
+    unpadded_data = padder.update(data)
+    unpadded_data += padder.finalize()
+    return(unpadded_data)
 
-    # Pad and encrypt
-    padded_data = pad_data(plaintext)
-    ciphertext = encrypt(padded_data, key)
-    print("Encrypted ciphertext:", ciphertext)
+key = hashlib.sha256(password.encode()).digest()
 
-    # Decrypt and unpad
-    decrypted_data = decrypt(ciphertext, key)
-    original_plaintext = unpad_data(decrypted_data)
-    print("Decrypted plaintext:", original_plaintext)
+print("Before padding: ",plaintext)
+
+plaintext=pad(plaintext.encode())
+
+print("After padding (CMS): ",binascii.hexlify(bytearray(plaintext)))
+
+ciphertext = encrypt(plaintext,key,modes.ECB())
+print("Cipher (ECB): ",binascii.hexlify(bytearray(ciphertext)))
+
+plaintext = decrypt(ciphertext,key,modes.ECB())
+
+plaintext = unpad(plaintext)
+print("  decrypt: ",plaintext.decode())
